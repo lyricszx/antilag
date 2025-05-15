@@ -1,0 +1,75 @@
+-- FPS Extremo Mobile - F3X Safe
+-- By: Supremo Pica Das Galáxias
+
+local lp = game:GetService("Players").LocalPlayer
+local lighting = game:GetService("Lighting")
+local terrain = workspace:FindFirstChildOfClass("Terrain")
+
+-- Terreno leve
+if terrain then
+    terrain.WaterWaveSize = 0
+    terrain.WaterWaveSpeed = 0
+    terrain.WaterReflectance = 0
+    terrain.WaterTransparency = 1
+end
+
+-- Efeitos visuais off
+for _, v in pairs(lighting:GetChildren()) do
+    if v:IsA("PostEffect") then
+        v:Destroy()
+    end
+end
+
+lighting.GlobalShadows = false
+lighting.FogEnd = 1e10
+lighting.Brightness = 1
+lighting.ClockTime = 14
+
+-- Visual simplificado
+for _, obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("BasePart") then
+        obj.Material = Enum.Material.SmoothPlastic
+        obj.CastShadow = false
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
+        obj:Destroy()
+    end
+end
+
+-- Desativa decalques e texturas sem apagar (F3X safe)
+for _, obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        obj.Transparency = 1
+    end
+end
+
+-- Scripts de fora não são mais destruídos (evita kick)
+-- Apenas pause o que for leve
+-- Se quiser destruir, faça manualmente com cuidado
+
+-- Sons off
+for _, snd in pairs(workspace:GetDescendants()) do
+    if snd:IsA("Sound") then
+        snd.Volume = 0
+    end
+end
+
+-- GUI segura: não apaga nada, apenas tenta esconder o que for puramente visual (sem afetar botões)
+-- HUD F3X e controles mobile são mantidos
+for _, gui in pairs(lp:WaitForChild("PlayerGui"):GetChildren()) do
+    if gui:IsA("ScreenGui") then
+        for _, el in pairs(gui:GetDescendants()) do
+            if el:IsA("ImageLabel") or el:IsA("ImageButton") then
+                el.ImageTransparency = 1
+            elseif el:IsA("TextLabel") or el:IsA("TextButton") then
+                el.TextTransparency = 0 -- mantém texto visível
+            end
+        end
+    end
+end
+
+-- Notificação final
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "FPS Mobile - F3X Seguro";
+    Text = "Lag removido com HUD e F3X intactos.";
+    Duration = 6;
+})
