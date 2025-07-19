@@ -1,75 +1,77 @@
--- FPS Extremo Mobile - F3X Safe
--- By: Supremo Pica Das Galáxias
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
 
-local lp = game:GetService("Players").LocalPlayer
-local lighting = game:GetService("Lighting")
-local terrain = workspace:FindFirstChildOfClass("Terrain")
+-- configurações
+local fov = 9
+local maxDistance = 180
+local teamCheck = false
 
--- Terreno leve
-if terrain then
-    terrain.WaterWaveSize = 0
-    terrain.WaterWaveSpeed = 0
-    terrain.WaterReflectance = 0
-    terrain.WaterTransparency = 1
+-- FOV
+local FOVring = Drawing.new("Circle")
+FOVring.Visible = false
+FOVring.Thickness = 2
+FOVring.Color = Color3.fromRGB(255, 0, 0)
+FOVring.Filled = false
+FOVring.Radius = fov
+FOVring.Position = Camera.ViewportSize / 2
+
+-- básico
+local function updateDrawings()
+    FOVring.Position = Camera.ViewportSize / 2
 end
 
--- Efeitos visuais off
-for _, v in pairs(lighting:GetChildren()) do
-    if v:IsA("PostEffect") then
-        v:Destroy()
+local function isPlayerAlive(player)
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        return character.Humanoid.Health > 0
     end
+    return false
 end
 
-lighting.GlobalShadows = false
-lighting.FogEnd = 1e10
-lighting.Brightness = 1
-lighting.ClockTime = 14
+local function getClosestPlayerInFOV()
+    local nearest = nil
+    local shortestDistance = math.huge
+    local centerScreen = Camera.ViewportSize / 2
+    local localPlayer = Players.LocalPlayer
 
--- Visual simplificado
-for _, obj in pairs(workspace:GetDescendants()) do
-    if obj:IsA("BasePart") then
-        obj.Material = Enum.Material.SmoothPlastic
-        obj.CastShadow = false
-    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
-        obj:Destroy()
-    end
-end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and isPlayerAlive(player) and (not teamCheck or player.Team ~= localPlayer.Team) then
+            local head = player.Character and player.Character:FindFirstChild("Head")
+            if head then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
 
--- Desativa decalques e texturas sem apagar (F3X safe)
-for _, obj in pairs(workspace:GetDescendants()) do
-    if obj:IsA("Decal") or obj:IsA("Texture") then
-        obj.Transparency = 1
-    end
-end
-
--- Scripts de fora não são mais destruídos (evita kick)
--- Apenas pause o que for leve
--- Se quiser destruir, faça manualmente com cuidado
-
--- Sons off
-for _, snd in pairs(workspace:GetDescendants()) do
-    if snd:IsA("Sound") then
-        snd.Volume = 0
-    end
-end
-
--- GUI segura: não apaga nada, apenas tenta esconder o que for puramente visual (sem afetar botões)
--- HUD F3X e controles mobile são mantidos
-for _, gui in pairs(lp:WaitForChild("PlayerGui"):GetChildren()) do
-    if gui:IsA("ScreenGui") then
-        for _, el in pairs(gui:GetDescendants()) do
-            if el:IsA("ImageLabel") or el:IsA("ImageButton") then
-                el.ImageTransparency = 1
-            elseif el:IsA("TextLabel") or el:IsA("TextButton") then
-                el.TextTransparency = 0 -- mantém texto visível
+                if onScreen and distance < fov and distance < shortestDistance then
+                    shortestDistance = distance
+                    nearest = player
+                end
             end
         end
     end
+
+    return nearest
 end
 
--- Notificação final
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "FPS Mobile - F3X Seguro";
-    Text = "Lag removido com HUD e F3X intactos.";
-    Duration = 6;
-})
+-- click
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local function autoMouse1()
+    local targetPlayer = getClosestPlayerInFOV()
+    if targetPlayer then
+        -- click
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        wait(0.1) -- Intervalo entre cliques
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    end
+end
+
+-- loop
+RunService.RenderStepped:Connect(function()
+    updateDrawings()
+    local closestPlayer = getClosestPlayerInFOV()
+    if closestPlayer then
+        autoMouse1()
+    end
+end)
